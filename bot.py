@@ -9,6 +9,8 @@ from aiogram.filters import Command
 from aiogram.types import FSInputFile
 from aiogram.types import InlineKeyboardButton, CallbackQuery
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
+from aiohttp import web
 
 # Load .env variables
 load_dotenv()
@@ -138,9 +140,33 @@ async def handle_download(callback: CallbackQuery):
         logger.error(f"Download failed: {e}")
         await callback.message.answer(f"❌ Download failed.\n<code>{str(e)}</code>", parse_mode="HTML")
 
-# Bot entry point
-async def main():
-    await dp.start_polling(bot)
+async def on_startup(app: web.Application):
+    await bot.set_webhook("https://torrent2link.onrender.com/webhook")
+
+def main():
+    # Create aiohttp application
+    app = web.Application()
+    
+    # Register webhook handler
+    webhook_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot,
+    )
+    webhook_handler.register(app, path="/webhook")
+    
+    # Setup application
+    setup_application(app, dp, bot=bot)
+    
+    # Add startup callback
+    app.on_startup.append(on_startup)
+    
+    # Add health check endpoint
+    async def health_check(request):
+        return web.Response(text="OK")
+    app.router.add_get("/health", health_check)
+    
+    # Run app (Render requires port 10000)
+    web.run_app(app, host="0.0.0.0", port=10000)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
