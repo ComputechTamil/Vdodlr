@@ -1,0 +1,43 @@
+name: Bot CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Download ffmpeg static binary
+        run: |
+          mkdir -p bin
+          curl -L https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz | tar -xJ --strip-components=1 -C bin
+          chmod +x bin/ffmpeg bin/ffprobe
+
+      - name: Set ffmpeg in PATH
+        run: echo "$(pwd)/bin" >> $GITHUB_PATH
+
+      # Optional: run your bot for a short test or run unit tests
+      # - name: Run bot (test mode)
+      #   run: python bot.py
+
+      - name: Lint with flake8
+        run: |
+          pip install flake8
+          flake8 .
